@@ -1,0 +1,13 @@
+{application, sdt,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  escalus
+                 ]},
+  {mod, { sdt_app, []}},
+  {env, []}
+ ]}.
