@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/4]).
+-export([start_link/5]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -19,17 +19,18 @@
 %%% API
 %%%===================================================================
 
-start_link(Server, Username, Password, Interval) ->
-    gen_server:start_link(?MODULE, [Server, Username, Password, Interval], []).
+start_link(Server, Host, Username, Password, Interval) ->
+    gen_server:start_link(?MODULE, [Server, Host, Username, Password, Interval], []).
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init([Server, Username, Password, Interval]) ->
+init([Server, Host, Username, Password, Interval]) ->
     process_flag(trap_exit, true),
     random:seed(os:timestamp()),
     Props = [{server, Server},
+ 	     {host, Host},
              {username, Username},
              {password, Password},
              {resource, <<"sdt">>}],
@@ -37,7 +38,7 @@ init([Server, Username, Password, Interval]) ->
         {ok, Conn, _Props} ->
             erlang:send_after(random:uniform(Interval), self(), send_message),
             send_initial_presence(Conn),
-            sdt_manager:register(Username, Server),
+            sdt_manager:register(Username),
             {ok, #state{conn=Conn, interval=Interval}};
         {error, Reason} ->
             {stop, Reason}

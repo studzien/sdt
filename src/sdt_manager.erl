@@ -4,7 +4,7 @@
 
 %% API
 -export([start_link/1,
-         register/2,
+         register/1,
          unregister/0,
          get_jid/0,
          report/1]).
@@ -28,8 +28,8 @@
 start_link(Interval) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [Interval], []).
 
-register(Username, Server) ->
-    gen_server:call(?MODULE, {register, self(), Username, Server}).
+register(Username) ->
+    gen_server:call(?MODULE, {register, self(), Username}).
 
 unregister() ->
     gen_server:cast(?MODULE, {unregister, self()}).
@@ -49,8 +49,8 @@ init([Interval]) ->
     erlang:send_after(Interval, self(), flush),
     {ok, #state{interval=Interval}}.
 
-handle_call({register, Pid, Username, Server}, _From, #state{clients=Clients}=State) ->
-    Jid = <<Username/binary, "@", Server/binary>>,
+handle_call({register, Pid, Username}, _From, #state{clients=Clients}=State) ->
+    Jid = <<Username/binary, "@localhost">>,
     NewClients = dict:store(Pid, Jid, Clients),
     {reply, ok, State#state{clients=NewClients}};
 handle_call({get_jid, Pid}, _From, #state{clients=Clients}=State) ->

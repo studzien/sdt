@@ -1,9 +1,9 @@
 -module(sdt).
 
--export([start_clients/2]).
+-export([start_clients/3]).
 
-start_clients(Server, Clients) ->
-    [start_client(Server, Client) || Client <- Clients].
+start_clients(Server, Host, Clients) ->
+    [start_client(Server, Host, Client) || Client <- Clients].
 
-start_client(Server, {Username, Password}) ->
-    supervisor:start_child(sdt_client_sup, [Server, Username, Password, 10000]).
+start_client(Server, Host, {Username, Password}) ->
+    supervisor:start_child(sdt_client_sup, [Server, Host, Username, Password, 10000]).
