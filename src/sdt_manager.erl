@@ -93,7 +93,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 flush_graphite(Times) ->
-    NS = "sdt.delivery_time",
+    Host = string:strip(os:cmd("hostname"), both, $\n),
+    NS = "sdt." ++ Host ++ "delivery_time",
     Output = [graphite_metric(NS, Value, Timestamp) || {Timestamp, Value} <- Times],
     {ok, Socket} = gen_tcp:connect("10.100.0.70", 2003, []),
     gen_tcp:send(Socket, Output),

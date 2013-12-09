@@ -9,7 +9,7 @@
 -export([init/1]).
 
 -define(CHILD(Id, Mod, Type, Args), {Id, {Mod, start_link, Args},
-                                     transient, 5000, Type, [Mod]}).
+                                     permanent, 5000, Type, [Mod]}).
 
 %%%===================================================================
 %%% API functions
@@ -23,7 +23,7 @@ start_link() ->
 %%%===================================================================
 
 init([]) ->
-    {ok, {{simple_one_for_one, 5, 10},
+    {ok, {{simple_one_for_one, 30, 10},
           [?CHILD(sdt_client, sdt_client, worker, [])]
          }}.
 

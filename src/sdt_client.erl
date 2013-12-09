@@ -13,7 +13,8 @@
          terminate/2,
          code_change/3]).
 
--record(state, {conn, interval}).
+-record(state, {conn, interval,props,backoff}).%backoff in ms 
+-define(INITIAL_BACKOFF, 1000).
 
 %%%===================================================================
 %%% API
@@ -39,7 +40,7 @@ init([Server, Host, Username, Password, Interval]) ->
             erlang:send_after(random:uniform(Interval), self(), send_message),
             send_initial_presence(Conn),
             sdt_manager:register(Username),
-            {ok, #state{conn=Conn, interval=Interval}};
+            {ok, #state{conn=Conn, interval=Interval,props=Props, backoff=?INITIAL_BACKOFF}};
         {error, Reason} ->
             {stop, Reason}
     end.
@@ -51,6 +52,19 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
+handle_info(reconnect, #state{backoff=Backoff,props=Props, interval=Interval} =State) ->
+    try
+        case escalus_connection:start(Props) of 
+            {ok,Conn,_Props} ->
+                send_initial_presence(Conn),
+                erlang:send_after(Interval, self(), send_message),
+                {noreply, State#state{conn=Conn,backoff=?INITIAL_BACKOFF}};
+            {error,_ } ->
+                handle_reconnect(Backoff,State)
+        end
+    catch _:_ ->
+              handle_reconnect(Backoff,State)
+    end; 
 handle_info(send_message, #state{conn=Conn, interval=Interval}=State) ->
     handle_send_message(Conn, Interval),
     {noreply, State};
@@ -70,6 +84,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+handle_reconnect(Backoff,State)->
+    NBackoff = Backoff*1.5, 
+    erlang:send_after(round(NBackoff), self(), reconnect),
+    {noreply, State#state{backoff=NBackoff}}.
+
 send_initial_presence(Conn) ->
     Presence = escalus_stanza:presence(<<"available">>),
     escalus_connection:send(Conn, Presence).
@@ -78,8 +98,12 @@ handle_send_message(Conn, Interval) ->
     Jid = sdt_manager:get_jid(),
     Time = timestamp_to_binary(os:timestamp()),
     Stanza = escalus_stanza:chat_to(Jid, Time),
-    escalus_connection:send(Conn, Stanza), 
-    erlang:send_after(Interval, self(), send_message).
+    case escalus_connection:send(Conn, Stanza) of 
+        ok-> 
+            erlang:send_after(Interval, self(), send_message);
+        {error,_}->
+            self() ! reconnect
+    end.
 
 handle_stanza(Stanza) ->
     Now = os:timestamp(),
